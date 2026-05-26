@@ -19,7 +19,7 @@ argparser = argparse.ArgumentParser(description="The stupidest content tracker")
 #Setting-Up required subcommands (subparsers) 
 argsubparsers = argparser.add_subparsers(title="Commands", dest="command")
 argsubparsers.required = True
-
+#Git commands parsing
 #Will prioritize core git commands, but including all for now. 
 def main(argv=sys.argv[1:]):
     args = argparser.parse_args(argv)
@@ -66,10 +66,13 @@ class GitRepository (object):
             if vers != 0:
                 raise Exception(f"Unsupported repositoryformatversion: {vers}")
 
+
+#Setting up git init
 #build path (doesn't create directory)       
 def repo_path(repo, *path):
     #star makes function variadic --> mutliple paths as separate arguments can be included when calling the function
     return os.path.join(repo.gitdir, *path)
+
 
 #Creating a file through path
 def repo_file(repo, *path, mkdir=False):
@@ -91,6 +94,52 @@ def repo_dir(repo, *path, mkdir=False):
     else:
         return None
 
+def repo_create(path):
+    """Create a new repository at path."""
+    repo = GitRepository(path, True)
+    # First, we make sure the path either doesn't exist or is an
+    # empty dir.
+    if os.path.exists(repo.worktree):
+        if not os.path.isdir(repo.worktree):
+            raise Exception (f"{path} is not a directory!")
+        if os.path.exists(repo.gitdir) and os.listdir(repo.gitdir):
+            raise Exception (f"{path} is not empty!")
+    else:
+        os.makedirs(repo.worktree)
+    assert repo_dir(repo, "branches", mkdir=True)
+    assert repo_dir(repo, "objects", mkdir=True)
+    assert repo_dir(repo, "refs", "tags", mkdir=True)
+    assert repo_dir(repo, "refs", "heads", mkdir=True)
+    # .git/description
+    with open(repo_file(repo, "description"), "w") as f:
+        f.write("Unnamed repository; edit this file 'description' to name the repository.\n")
+    # .git/HEAD
+    with open(repo_file(repo, "HEAD"), "w") as f:
+        f.write("ref: refs/heads/master\n")
+    with open(repo_file(repo, "config"), "w") as f:
+        config = repo_default_config()
+        config.write(f)
+        
+    return repo
 
-          
+#working on configuration file --> 
+def repo_default_config():
+    ret = configparser.ConfigParser()
+    
+    ret.add_section("core")
+    ret.set("core", "repositoryformatversion", "0")
+    ret.set("core", "filemode", "false")
+    ret.set("core", "bare", "false")
+
+    return ret
+    
+argsp = argsubparsers.add_parser("init", help="Initialize a new, empty repository.")
+argsp.add_argument("path",
+                   metavar="directory",
+                   nargs="?",
+                   default=".",
+                   help="Where to create the repository.")
+
+def cmd_init(args):
+    repo_create(args.path)        
             

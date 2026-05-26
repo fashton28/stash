@@ -1,4 +1,3 @@
 #!/usr/bin/env python3
-
-import libwstash # type: ignore
-libstash.main() # type: ignore
+import libstash
+libstash.main()
